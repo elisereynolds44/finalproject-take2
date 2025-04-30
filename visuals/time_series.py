@@ -1,5 +1,6 @@
 import plotly.express as px
 from datetime import datetime
+import pandas as pd
 
 # --- Color Map for Line Chart ---
 color_discrete_map = {
@@ -17,8 +18,8 @@ color_discrete_map = {
 # --- Ticker to Full Name ---
 TICKER_TO_NAME = {
     "NVDA": "NVIDIA",
-    "^GSPC": "S&P 500",
-    "^IXIC": "NASDAQ",
+    "SPY": "S&P 500",
+    "QQQ": "NASDAQ",
     "AMD": "AMD",
     "INTC": "Intel",
     "MSFT": "Microsoft",
@@ -27,21 +28,25 @@ TICKER_TO_NAME = {
     "SMCI": "SuperMicro"
 }
 
-
-# --- Create Line Chart ---
-def create_time_series_chart(df, selected_tickers):
+def create_time_series_chart(df, selected_tickers, date_range=None):
     if df is None or df.empty or not selected_tickers:
         return px.line(
             title="No data available to display.",
             labels={"value": "Relative Price", "Date": "Date"}
         )
 
-    # Map to company names
+    df = df.copy()
+
     selected_columns = [TICKER_TO_NAME.get(t, t) for t in selected_tickers]
     existing_columns = [col for col in selected_columns if col in df.columns]
 
     if not existing_columns:
         return px.line(title="⚠️ Selected stocks not found in the data.")
+
+    # Normalize to 100
+    for col in df.columns:
+        if col != "Date":
+            df[col] = df[col] / df[col].iloc[0] * 100
 
     try:
         df_long = df[["Date"] + existing_columns].melt(
@@ -51,7 +56,6 @@ def create_time_series_chart(df, selected_tickers):
         print(f"❌ Error melting DataFrame: {e}")
         return px.line(title="⚠️ Error rendering chart.")
 
-    # Create the chart
     fig = px.line(
         df_long,
         x='Date',
@@ -70,7 +74,7 @@ def create_time_series_chart(df, selected_tickers):
         legend_title="Company",
     )
 
-    # --- Add Earnings Markers ---
+    # Add earnings markers
     earnings_dates = [
         datetime(2023, 2, 22),
         datetime(2023, 5, 24),
@@ -81,14 +85,21 @@ def create_time_series_chart(df, selected_tickers):
     ]
 
     for date in earnings_dates:
-        fig.add_vline(
+        fig.add_vline(x=date, line_width=2, line_dash="dash", line_color="gray")
+        fig.add_annotation(
             x=date,
-            line_width=2,
-            line_dash="dash",
-            line_color="gray",
-            annotation_text="Earnings",
-            annotation_position="top left",
-            annotation_font_size=10
+            y=max(df_long["value"]),
+            text="Earnings",
+            showarrow=False,
+            yshift=10,
+            font=dict(size=10, color="gray")
         )
+
+    # Zoom the x-axis based on month index
+    if date_range:
+        months = pd.date_range(start="2023-01-01", end="2024-12-01", freq="MS")
+        start_date = months[date_range[0]]
+        end_date = months[date_range[1]] + pd.offsets.MonthEnd(1)
+        fig.update_xaxes(range=[start_date, end_date])
 
     return fig

@@ -1,18 +1,7 @@
 import plotly.graph_objects as go
 
 def create_heatmap(corr_matrix):
-    label_map = {
-        "NVDA": "NVIDIA",
-        "^GSPC": "S&P 500",
-        "^IXIC": "NASDAQ",
-        "AMD": "AMD",
-        "INTC": "Intel",
-        "MSFT": "Microsoft",
-        "DELL": "Dell",
-        "HPE": "Hewlett Packard Enterprise",
-        "SMCI": "SuperMicro"
-    }
-
+    # If your CSV column names are already full company names (they are), you can use them directly
     if corr_matrix is None or corr_matrix.empty:
         return go.Figure(
             layout={
@@ -23,15 +12,17 @@ def create_heatmap(corr_matrix):
         )
 
     try:
-        tickers = corr_matrix.columns.tolist()
-        readable_labels = [label_map.get(t, t) for t in tickers]
+        # Use the column names directly (since you've labeled them like "NVIDIA", "AMD", etc.)
+        labels = corr_matrix.columns.tolist()
 
         fig = go.Figure(
             data=go.Heatmap(
                 z=corr_matrix.values,
-                x=readable_labels,
-                y=readable_labels,
+                x=labels,
+                y=labels,
                 colorscale='Viridis',
+                zmin=0,  # ensures consistent scale
+                zmax=1
             )
         )
         fig.update_layout(
